@@ -1,0 +1,12 @@
+**/target/
+**/build/
+**/node_modules/
+**/dist/
+**/.gradle/
+.git/
+.github/
+.idea/
+.vscode/
+*.iml
+*.md
+!README.md

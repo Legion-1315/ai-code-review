@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: ai-code-review
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: default
+      - key: APP_JWT_SECRET
+        generateValue: true
+      - key: APP_CORS_ORIGINS
+        value: "*"
+      # Optional: set from the Render dashboard to enable real Claude reviews.
+      # Without it the app runs in deterministic mock mode (still fully demoable).
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
