@@ -1,5 +1,12 @@
 # AI-Powered Code Review System
 
+[![CI](https://github.com/Legion-1315/ai-code-review/actions/workflows/ci.yml/badge.svg)](https://github.com/Legion-1315/ai-code-review/actions/workflows/ci.yml)
+
+🔗 **Live demo:** https://ai-code-review-uzuo.onrender.com · **Source:** https://github.com/Legion-1315/ai-code-review
+
+> ⏳ Hosted on Render's free tier, which sleeps after 15 min idle — the first
+> request may take ~50 s to wake, then it's fast.
+
 Automatically reviews pull requests with AI: a developer pushes code (or pastes a diff) →
 the system analyzes it with Claude → it returns inline findings, a quality score, and a
 summary. Findings are categorized (security, code quality, performance, best practice, test
@@ -139,5 +146,41 @@ All endpoints except `/api/auth/**` and `/api/webhooks/**` require a
 ```
 ai-code-review/
 ├── backend/    Spring Boot API + AI review engine
-└── frontend/   React + TypeScript dashboard
+├── frontend/   React + TypeScript dashboard
+├── Dockerfile  Multi-stage: node build → maven build → JRE runtime (single container)
+└── render.yaml Render Blueprint (free tier, docker runtime, /actuator/health check)
+```
+
+## Deployment (free, one Docker service)
+
+The whole app ships as a single container: a multi-stage [`Dockerfile`](Dockerfile)
+builds the React SPA, bundles it into Spring Boot's static resources, then runs one
+JVM that serves both the UI and `/api` on the same origin — one URL, no CORS.
+
+### Deploy to Render (free tier, no credit card)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Legion-1315/ai-code-review)
+
+1. Click the button above (or from the Render dashboard: **New + → Blueprint**),
+   sign in with GitHub, authorize this repo.
+2. Render reads [`render.yaml`](render.yaml) and provisions the `ai-code-review`
+   web service from the [`Dockerfile`](Dockerfile). Click **Apply**.
+3. Optionally set `ANTHROPIC_API_KEY` in **Environment** to enable real Claude reviews
+   (without it the deterministic mock engine still produces a full review).
+4. First build takes ~6–10 min. The app is then live at
+   `https://ai-code-review-XXXX.onrender.com`.
+
+Free-plan caveats:
+- The service **sleeps after 15 min idle**; next visit cold-starts in ~50 s. Keep it
+  warm with a free cron ping (e.g. [cron-job.org](https://cron-job.org)) hitting
+  `/actuator/health` every 10 min.
+- H2 is in-memory, so all data (accounts, reviews) **resets on redeploy** — expected
+  for a demo. For persistence, set `SPRING_PROFILES_ACTIVE=postgres` plus
+  `DB_URL` / `DB_USERNAME` / `DB_PASSWORD` and point at a managed Postgres.
+
+### Run the container locally
+
+```bash
+docker build -t ai-code-review .
+docker run -p 8080:8080 ai-code-review   # open http://localhost:8080
 ```

@@ -73,3 +73,26 @@ or security, check both `SecurityConfig` and the frontend proxy in [vite.config.
 
 - Prefer minimal, local changes. The repo includes backend test dependencies but no tests yet; add tests for new backend behavior where practical.
 - Treat review submission as asynchronous/eventually-consistent everywhere it surfaces.
+
+## Deployment
+
+Single-container design: multi-stage [`Dockerfile`](Dockerfile) builds the React SPA
+(node:20-alpine) → copies `dist/` into Spring Boot's `resources/static/` →
+`mvn package` on `maven:3.9-eclipse-temurin-21` → runs on `eclipse-temurin:21-jre`.
+Spring serves the SPA at `/` and the API at `/api/**` on the **same origin**, so
+production needs no CORS. [`SpaController`](backend/src/main/java/com/codereview/web/SpaController.java)
+forwards non-API, non-asset GETs to `index.html` so React Router handles them; the
+matching security rules in [`SecurityConfig`](backend/src/main/java/com/codereview/config/SecurityConfig.java)
+permit any non-`/api/**` path. `server.port=${PORT:8080}` honors the host's injected port.
+
+- **Repo:** github.com/Legion-1315/ai-code-review (public).
+- **Live:** https://ai-code-review-uzuo.onrender.com (deployed & verified 2026-07-09 —
+  SPA, `/actuator/health`, React-Router `/login`, and `/api/auth/register` all return 200).
+- **Host:** Render free tier via [`render.yaml`](render.yaml) Blueprint (`runtime: docker`,
+  `plan: free`, health check `/actuator/health`). `APP_JWT_SECRET` auto-generated per deploy;
+  `ANTHROPIC_API_KEY` optional (mock engine used when absent).
+- **Free-tier caveats:** sleeps after 15 min idle (~50 s cold start); H2 in-memory so
+  all data resets on redeploy.
+- **CI:** [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — backend `mvn verify` +
+  frontend `npm ci && npm run build`.
+- **`.dockerignore`** excludes `target/`, `node_modules/`, `dist/`, `.git/`, IDE files.
