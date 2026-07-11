@@ -171,9 +171,11 @@ JVM that serves both the UI and `/api` on the same origin — one URL, no CORS.
    `https://ai-code-review-XXXX.onrender.com`.
 
 Free-plan caveats:
-- The service **sleeps after 15 min idle**; next visit cold-starts in ~50 s. Keep it
-  warm with a free cron ping (e.g. [cron-job.org](https://cron-job.org)) hitting
-  `/actuator/health` every 10 min.
+- The service **sleeps after 15 min idle**; next visit cold-starts in ~50 s. This
+  repo ships a scheduled GitHub Actions workflow
+  ([`keep-warm.yml`](.github/workflows/keep-warm.yml)) that pings
+  `/actuator/health` every ~10 minutes during business hours (≈ 9:30–19:20 IST),
+  sized to share Render's 750 free instance-hours/month with the SentiSense app.
 - H2 is in-memory, so all data (accounts, reviews) **resets on redeploy** — expected
   for a demo. For persistence, set `SPRING_PROFILES_ACTIVE=postgres` plus
   `DB_URL` / `DB_USERNAME` / `DB_PASSWORD` and point at a managed Postgres.

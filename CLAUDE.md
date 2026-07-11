@@ -91,8 +91,12 @@ permit any non-`/api/**` path. `server.port=${PORT:8080}` honors the host's inje
 - **Host:** Render free tier via [`render.yaml`](render.yaml) Blueprint (`runtime: docker`,
   `plan: free`, health check `/actuator/health`). `APP_JWT_SECRET` auto-generated per deploy;
   `ANTHROPIC_API_KEY` optional (mock engine used when absent).
-- **Free-tier caveats:** sleeps after 15 min idle (~50 s cold start); H2 in-memory so
-  all data resets on redeploy.
+- **Free-tier caveats:** sleeps after 15 min idle (~50 s cold start). Mitigated by
+  [`keep-warm.yml`](.github/workflows/keep-warm.yml) — scheduled GitHub Actions ping
+  of `/actuator/health` every ~10 min, 4–13 UTC (≈ 9:30–19:20 IST). Window budgeted
+  against the workspace's 750 free instance-hours/month shared with SentiSense
+  (~285 h vs ~430 h). GitHub pauses cron workflows after 60 days without commits.
+  H2 in-memory so all data resets on redeploy.
 - **CI:** [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — backend `mvn verify` +
   frontend `npm ci && npm run build`.
 - **`.dockerignore`** excludes `target/`, `node_modules/`, `dist/`, `.git/`, IDE files.

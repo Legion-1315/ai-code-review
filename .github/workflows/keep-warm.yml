@@ -1,0 +1,33 @@
+name: Keep Render warm
+
+# Render's free tier sleeps the service after 15 minutes of inactivity
+# (~50 s cold start). This pings the health endpoint every ~10 minutes during
+# business hours (≈ 9:30 AM – 7:20 PM IST) so the demo loads instantly when a
+# recruiter clicks the resume link.
+#
+# The window is deliberately narrower than SentiSense's: both apps share one
+# Render workspace with 750 free instance-hours/month (this app ~285 h,
+# SentiSense ~430 h, leaving headroom for organic traffic).
+#
+# Note: GitHub disables scheduled workflows after 60 days without repo
+# activity — any commit resets the clock.
+
+on:
+  schedule:
+    # minutes offset from :00 to dodge GitHub's top-of-the-hour congestion;
+    # hours are UTC (4-13 UTC ≈ 9:30 AM - 7:20 PM IST)
+    - cron: '7,17,27,37,47,57 4-13 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: |
+          # -m 90: allow for a ~50 s cold start if the service was asleep
+          # --retry 2: ride out transient network hiccups
+          curl -fsS -m 90 --retry 2 --retry-delay 5 \
+            https://ai-code-review-uzuo.onrender.com/actuator/health
+          echo
+          echo "Service is warm."
