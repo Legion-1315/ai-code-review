@@ -47,26 +47,27 @@ public class ReviewService {
 
         Review review = createAndSchedule(repo, request.title(),
                 StringUtils.hasText(request.author()) ? request.author() : "unknown",
-                request.diff(), null);
+                request.diff(), null, null);
         return ReviewDetailResponse.from(review);
     }
 
     /** Entry point used by the GitHub webhook once a repository and diff have been resolved. */
     @Transactional
     public Review submitForRepository(GitRepository repo, String title, String author,
-                                      String diff, Integer prNumber) {
+                                      String diff, Integer prNumber, String headRef) {
         return createAndSchedule(repo, title,
-                StringUtils.hasText(author) ? author : "unknown", diff, prNumber);
+                StringUtils.hasText(author) ? author : "unknown", diff, prNumber, headRef);
     }
 
     private Review createAndSchedule(GitRepository repo, String title, String author,
-                                     String diff, Integer prNumber) {
+                                     String diff, Integer prNumber, String headRef) {
         PullRequest pr = new PullRequest();
         pr.setRepository(repo);
         pr.setTitle(title);
         pr.setAuthor(author);
         pr.setDiff(diff);
         pr.setPrNumber(prNumber);
+        pr.setHeadRef(headRef);
         pullRequests.save(pr);
 
         Review review = new Review();

@@ -71,6 +71,21 @@ H2 console `http://localhost:8080/h2-console` (JDBC `jdbc:h2:mem:codereview`).
   `datasetAnchorsAreValid` test fails if a label doesn't exist in its diff. TEST_COVERAGE
   findings are excluded from scoring by design.
 
+**Repo-context enrichment (webhook reviews)** — `service/context/`:
+- [RepoContextService](backend/src/main/java/com/codereview/service/context/RepoContextService.java)
+  fetches the diff's touched files at the PR head SHA (captured from the webhook payload
+  into `PullRequest.headRef`) via raw.githubusercontent.com, then resolves one level of
+  same-repo Java imports against a single `git/trees?recursive=1` listing. Budgeted
+  (`ai.context.*` in application.yml: 48K chars total, 12K/file, 4 import files) and
+  best-effort — failures degrade to an empty context, never a failed review. Optional
+  `GITHUB_TOKEN` raises rate limits / enables private repos.
+- **Prompt-caching layout** in [AiReviewServiceImpl](backend/src/main/java/com/codereview/service/ai/AiReviewServiceImpl.java):
+  system prompt (cache breakpoint) → context block (cache breakpoint) → diff. The context
+  block is the large stable prefix; the diff is the volatile suffix. Cache usage is logged
+  from `response.usage()`. `Review.contextFiles` records how many files the model saw
+  (rendered as a chip on the review detail page).
+- Manual reviews (`prNumber == null`) skip context — there is no repo to fetch from.
+
 **AI engine selection & resilience** — `service/ai/`:
 - [AiReviewServiceImpl](backend/src/main/java/com/codereview/service/ai/AiReviewServiceImpl.java) picks real Claude vs. [MockReviewEngine](backend/src/main/java/com/codereview/service/ai/MockReviewEngine.java) based on whether `ai.api-key` is set, and falls back to the mock on any Claude error.
 - [ReviewPromptFactory](backend/src/main/java/com/codereview/service/ai/ReviewPromptFactory.java) builds the prompt (strict-JSON instructions); [ReviewJsonParser](backend/src/main/java/com/codereview/service/ai/ReviewJsonParser.java) parses defensively (markdown-fence stripping, enum fallbacks). `AiReviewResult.usedRealAi()` records which engine ran.

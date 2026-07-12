@@ -66,13 +66,14 @@ public class GitHubWebhookService {
             String title = pr.path("title").asText("Untitled PR");
             String author = pr.path("user").path("login").asText("unknown");
             String diffUrl = pr.path("diff_url").asText(null);
+            String headSha = pr.path("head").path("sha").asText(null);
 
             Optional<String> diff = diffClient.fetchDiff(diffUrl);
             if (diff.isEmpty()) {
                 return Outcome.NO_DIFF;
             }
 
-            reviewService.submitForRepository(repoOpt.get(), title, author, diff.get(), number);
+            reviewService.submitForRepository(repoOpt.get(), title, author, diff.get(), number, headSha);
             log.info("Scheduled review for {} PR #{}", fullName, number);
             return Outcome.REVIEW_SCHEDULED;
         } catch (Exception e) {

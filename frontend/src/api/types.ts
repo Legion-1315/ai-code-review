@@ -57,6 +57,7 @@ export interface ReviewDetail {
   summary: string | null;
   usedRealAi: boolean;
   unanchoredFindings: number;
+  contextFiles: number;
   errorMessage: string | null;
   issues: Issue[];
   createdAt: string;

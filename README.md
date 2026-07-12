@@ -60,6 +60,12 @@ Key design points worth discussing in an interview:
   before persisting; near-miss lines are snapped to the nearest real line and hallucinated
   anchors are demoted to file level. The demoted count is stored per review as a direct
   measure of the model's line-hallucination rate.
+- **Repo-context retrieval with prompt caching** — webhook reviews don't judge the diff
+  through a keyhole: the touched files' full contents at the PR head, plus one level of
+  their same-repo imports (resolved against a single `git/trees` listing), are fetched,
+  budgeted (~48K chars) and placed ahead of the diff as an Anthropic **prompt-cache
+  breakpoint**. Stable prefix first, volatile diff last — retries and rapid PR updates
+  read the large context block from cache at ~10% of input price.
 - **Measured quality (evals)** — a labeled dataset of diffs with planted bugs is scored on
   every `mvn test` run; precision/recall per category are published in-app at `/evals`.
 - **Graceful degradation** — any Claude failure transparently falls back to the heuristic

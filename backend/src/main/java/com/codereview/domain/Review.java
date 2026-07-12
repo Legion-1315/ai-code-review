@@ -48,6 +48,10 @@ public class Review {
     @Column(nullable = false)
     private int unanchoredFindings = 0;
 
+    /** Number of repository files provided to the model as context (webhook reviews only). */
+    @Column(nullable = false)
+    private int contextFiles = 0;
+
     @Column(columnDefinition = "TEXT")
     private String errorMessage;
 
@@ -107,6 +111,14 @@ public class Review {
 
     public void setUsedRealAi(boolean usedRealAi) {
         this.usedRealAi = usedRealAi;
+    }
+
+    public int getContextFiles() {
+        return contextFiles;
+    }
+
+    public void setContextFiles(int contextFiles) {
+        this.contextFiles = contextFiles;
     }
 
     public int getUnanchoredFindings() {

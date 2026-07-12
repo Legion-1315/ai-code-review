@@ -1,5 +1,7 @@
 package com.codereview.service.ai;
 
+import com.codereview.service.context.RepoContext;
+
 import org.springframework.stereotype.Component;
 
 /** Builds the system and user prompts for the review model. */
@@ -51,5 +53,30 @@ public class ReviewPromptFactory {
                 ? diff.substring(0, MAX_DIFF_CHARS) + "\n... [diff truncated]"
                 : diff;
         return "Pull request title: " + prTitle + "\n\nUnified diff to review:\n\n" + trimmed;
+    }
+
+    /**
+     * Repository-context block: full contents of the touched files (and a bounded set of
+     * their same-repo imports) at the PR head. Rendered *before* the diff in the user
+     * message and marked as a prompt-cache breakpoint — it is the large, stable part of
+     * the prompt, so repeat reviews of the same PR state read it from cache.
+     */
+    public String contextText(RepoContext context) {
+        StringBuilder sb = new StringBuilder(context.totalChars() + 512);
+        sb.append("Repository context — full file contents at the PR head (")
+                .append(context.repoFullName()).append('@').append(context.ref())
+                .append("). Use this to judge the diff against its surroundings: callers, ")
+                .append("invariants, duplicated logic, and existing utilities.\n");
+        if (context.truncated()) {
+            sb.append("(Context was truncated to fit budget; some files may be partial.)\n");
+        }
+        for (RepoContext.ContextFile file : context.files()) {
+            sb.append("\n<file path=\"").append(file.path()).append('"');
+            if (file.imported()) {
+                sb.append(" reason=\"imported by a touched file\"");
+            }
+            sb.append(">\n").append(file.content()).append("\n</file>\n");
+        }
+        return sb.toString();
     }
 }

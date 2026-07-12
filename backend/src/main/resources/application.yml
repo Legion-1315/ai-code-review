@@ -41,6 +41,8 @@ app:
   github:
     # HMAC secret configured on the GitHub webhook. Leave blank to disable signature checks (dev only).
     webhook-secret: ${GITHUB_WEBHOOK_SECRET:}
+    # Optional token for repo-context fetching: raises rate limits, enables private repos.
+    token: ${GITHUB_TOKEN:}
 
 ai:
   # The Claude model used for reviews.
@@ -49,6 +51,13 @@ ai:
   # When no ANTHROPIC_API_KEY is present the engine runs in deterministic mock mode,
   # so the whole application is demoable without external credentials.
   api-key: ${ANTHROPIC_API_KEY:}
+  # Repo-context enrichment for webhook reviews: fetch touched files + their imports
+  # at the PR head and include them (prompt-cached) ahead of the diff.
+  context:
+    enabled: ${AI_CONTEXT_ENABLED:true}
+    max-chars: 48000
+    max-file-chars: 12000
+    max-import-files: 4
 
 springdoc:
   swagger-ui:

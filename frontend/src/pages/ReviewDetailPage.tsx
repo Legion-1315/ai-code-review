@@ -45,6 +45,24 @@ export default function ReviewDetailPage() {
                   heuristic mode (set ANTHROPIC_API_KEY for full AI)
                 </span>
               )}
+              {review.contextFiles > 0 && (
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  title="Full file contents from the repository were provided to the model alongside the diff"
+                >
+                  repo context: {review.contextFiles} file
+                  {review.contextFiles === 1 ? "" : "s"}
+                </span>
+              )}
+              {review.unanchoredFindings > 0 && (
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200"
+                  title="Findings whose line numbers did not exist in the diff were demoted to file level"
+                >
+                  {review.unanchoredFindings} anchor
+                  {review.unanchoredFindings === 1 ? "" : "s"} demoted
+                </span>
+              )}
             </div>
           </div>
           <div className="text-right">

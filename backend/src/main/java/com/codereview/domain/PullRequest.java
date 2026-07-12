@@ -26,6 +26,10 @@ public class PullRequest {
     /** PR number on GitHub, or null for ad-hoc/manual reviews. */
     private Integer prNumber;
 
+    /** Head commit SHA (or branch) of the PR — used to fetch repo context; null for manual reviews. */
+    @Column(length = 100)
+    private String headRef;
+
     @Column(nullable = false)
     private String title;
 
@@ -57,6 +61,14 @@ public class PullRequest {
 
     public void setPrNumber(Integer prNumber) {
         this.prNumber = prNumber;
+    }
+
+    public String getHeadRef() {
+        return headRef;
+    }
+
+    public void setHeadRef(String headRef) {
+        this.headRef = headRef;
     }
 
     public String getTitle() {

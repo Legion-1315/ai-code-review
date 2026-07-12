@@ -7,6 +7,8 @@ import com.codereview.repository.ReviewRepository;
 import com.codereview.service.ai.AiReviewResult;
 import com.codereview.service.ai.AiReviewService;
 import com.codereview.service.ai.FindingAnchorValidator;
+import com.codereview.service.context.RepoContext;
+import com.codereview.service.context.RepoContextService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -27,12 +29,15 @@ public class ReviewProcessor {
     private final ReviewRepository reviews;
     private final AiReviewService aiReviewService;
     private final FindingAnchorValidator anchorValidator;
+    private final RepoContextService repoContextService;
 
     public ReviewProcessor(ReviewRepository reviews, AiReviewService aiReviewService,
-                           FindingAnchorValidator anchorValidator) {
+                           FindingAnchorValidator anchorValidator,
+                           RepoContextService repoContextService) {
         this.reviews = reviews;
         this.aiReviewService = aiReviewService;
         this.anchorValidator = anchorValidator;
+        this.repoContextService = repoContextService;
     }
 
     @Async("reviewExecutor")
@@ -48,9 +53,18 @@ public class ReviewProcessor {
         reviews.saveAndFlush(review);
 
         try {
+            // Repo context only exists for webhook-originated reviews (known repo + head SHA).
+            RepoContext context = review.getPullRequest().getPrNumber() != null
+                    ? repoContextService.fetch(
+                            review.getPullRequest().getRepository().getFullName(),
+                            review.getPullRequest().getHeadRef(),
+                            review.getPullRequest().getDiff())
+                    : RepoContext.empty();
+
             AiReviewResult result = aiReviewService.review(
                     review.getPullRequest().getTitle(),
-                    review.getPullRequest().getDiff());
+                    review.getPullRequest().getDiff(),
+                    context);
 
             // Guard against hallucinated anchors before persisting anything inline.
             FindingAnchorValidator.Result anchored = anchorValidator.validate(
@@ -76,6 +90,7 @@ public class ReviewProcessor {
             review.setSummary(result.summary());
             review.setUsedRealAi(result.usedRealAi());
             review.setUnanchoredFindings(anchored.demoted());
+            review.setContextFiles(context.files().size());
             review.setStatus(ReviewStatus.COMPLETED);
             review.setCompletedAt(Instant.now());
             reviews.save(review);
