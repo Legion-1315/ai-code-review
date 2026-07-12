@@ -1,0 +1,44 @@
+{
+  "generatedAt" : "2026-07-12T05:23:31.469430300Z",
+  "dataset" : {
+    "cases" : 12,
+    "buggyCases" : 10,
+    "cleanCases" : 2,
+    "labeledBugs" : 10
+  },
+  "methodology" : "Each case is a unified diff with hand-labeled planted bugs (file, line, accepted categories). A finding is a true positive when file matches, category is accepted, and the line is within 3 lines of the label. Unexpected findings count as false positives (a strict lower bound on precision). TEST_COVERAGE findings are excluded from scoring. Anchors are validated against the diff; demoted anchors measure line-number hallucination.",
+  "engines" : [ {
+    "engine" : "heuristic",
+    "truePositives" : 5,
+    "falseNegatives" : 5,
+    "falsePositives" : 0,
+    "precision" : 1.0,
+    "recall" : 0.5,
+    "f1" : 0.667,
+    "heuristicDetectableRecall" : 1.0,
+    "semanticRecall" : 0.0,
+    "cleanFalsePositives" : 0,
+    "demotedAnchors" : 0,
+    "categories" : [ {
+      "category" : "SECURITY",
+      "tp" : 2,
+      "fn" : 1,
+      "fp" : 0
+    }, {
+      "category" : "CODE_QUALITY",
+      "tp" : 1,
+      "fn" : 2,
+      "fp" : 0
+    }, {
+      "category" : "PERFORMANCE",
+      "tp" : 0,
+      "fn" : 1,
+      "fp" : 0
+    }, {
+      "category" : "BEST_PRACTICE",
+      "tp" : 2,
+      "fn" : 1,
+      "fp" : 0
+    } ]
+  } ]
+}

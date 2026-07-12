@@ -27,7 +27,7 @@ Monorepo with two independent projects:
 Backend (run from `backend/`; no Maven wrapper, use system `mvn`):
 ```bash
 mvn spring-boot:run          # start API on :8080 (H2 in-memory by default)
-mvn test                     # run tests (no test sources exist yet)
+mvn test                     # unit tests + eval harness (10 tests)
 mvn -Dtest=ClassName#method test   # run a single test
 mvn package                  # build jar
 SPRING_PROFILES_ACTIVE=postgres mvn spring-boot:run   # use PostgreSQL instead of H2
@@ -50,6 +50,26 @@ H2 console `http://localhost:8080/h2-console` (JDBC `jdbc:h2:mem:codereview`).
 1. `POST /api/reviews` ([ReviewController](backend/src/main/java/com/codereview/web/ReviewController.java)) → [ReviewService.submit](backend/src/main/java/com/codereview/service/ReviewService.java) creates a `PENDING` review row and returns immediately. The actual review runs later, so the UI polls `GET /api/reviews/{id}` for completion.
 2. **After-commit scheduling is load-bearing.** `ReviewService` registers a `TransactionSynchronization.afterCommit()` callback to fire the async worker — never call `ReviewProcessor.process` directly from within the creating transaction, or the worker thread may not see the committed row. Reuse the existing `createAndSchedule` path when adding any new review-creation entry point.
 3. [ReviewProcessor.process](backend/src/main/java/com/codereview/service/ReviewProcessor.java) is `@Async("reviewExecutor")` (pool defined in [AsyncConfig](backend/src/main/java/com/codereview/config/AsyncConfig.java)). It flips status to `IN_PROGRESS`, calls the AI service, persists findings/score, and sets `COMPLETED` or `FAILED`.
+
+**Anchor validation & evals** — the measured-quality layer:
+- [FindingAnchorValidator](backend/src/main/java/com/codereview/service/ai/FindingAnchorValidator.java)
+  runs on every result in `ReviewProcessor` *before* persisting: findings whose file/line
+  don't exist in the diff's hunks are snapped (within ±3 lines) or demoted to file level;
+  the demoted count is persisted as `Review.unanchoredFindings` (exposed in the detail DTO).
+- [EvalHarnessTest](backend/src/test/java/com/codereview/evals/EvalHarnessTest.java) scores
+  engines against the labeled dataset
+  [cases.json](backend/src/test/resources/evals/cases.json) (12 diffs, 10 planted bugs
+  split HEURISTIC/SEMANTIC, 2 clean controls). It asserts floors for the deterministic
+  heuristic engine (heuristic-recall ≥ 0.8, clean-diff FPs = 0, precision ≥ 0.8) — this is
+  a CI regression gate. With `ANTHROPIC_API_KEY` exported it also scores real Claude
+  (report-only, no assertions). Report goes to `target/evals/report.json`; the committed
+  copy at `backend/src/main/resources/evals/report.json` backs the public
+  `GET /api/evals/report` and the frontend **Evals** page
+  ([EvalsPage.tsx](frontend/src/pages/EvalsPage.tsx)). **To refresh the scoreboard:** run
+  `mvn test`, then copy `target/evals/report.json` over the committed copy.
+- When adding eval cases, keep labeled line numbers exact — the harness's
+  `datasetAnchorsAreValid` test fails if a label doesn't exist in its diff. TEST_COVERAGE
+  findings are excluded from scoring by design.
 
 **AI engine selection & resilience** — `service/ai/`:
 - [AiReviewServiceImpl](backend/src/main/java/com/codereview/service/ai/AiReviewServiceImpl.java) picks real Claude vs. [MockReviewEngine](backend/src/main/java/com/codereview/service/ai/MockReviewEngine.java) based on whether `ai.api-key` is set, and falls back to the mock on any Claude error.

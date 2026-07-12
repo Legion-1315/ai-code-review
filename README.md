@@ -56,8 +56,39 @@ Key design points worth discussing in an interview:
 - **Webhook security** — GitHub deliveries are verified with HMAC-SHA256 over the raw body.
 - **Structured AI output** — the model is prompted for strict JSON, parsed defensively
   (markdown-fence stripping, enum fallbacks).
+- **Anchor validation** — every finding's file/line is checked against the diff's hunks
+  before persisting; near-miss lines are snapped to the nearest real line and hallucinated
+  anchors are demoted to file level. The demoted count is stored per review as a direct
+  measure of the model's line-hallucination rate.
+- **Measured quality (evals)** — a labeled dataset of diffs with planted bugs is scored on
+  every `mvn test` run; precision/recall per category are published in-app at `/evals`.
 - **Graceful degradation** — any Claude failure transparently falls back to the heuristic
   engine, so a review is always produced.
+
+## Evals — measured reviewer quality
+
+The repo ships an evaluation harness (`EvalHarnessTest`) and a hand-labeled dataset
+(`backend/src/test/resources/evals/cases.json`): 12 unified diffs — 10 with planted,
+line-labeled bugs across SECURITY / PERFORMANCE / CODE_QUALITY / BEST_PRACTICE, and
+2 clean controls for false-positive measurement. Half the bugs are detectable by
+simple pattern rules; the other half (N+1 query, check-then-act race, resource leak,
+path traversal, off-by-one) require semantic understanding.
+
+Current scoreboard (deterministic heuristic engine — the zero-credential fallback):
+
+| Metric | Heuristic engine |
+|---|---|
+| Precision | **1.00** |
+| Recall (all bugs) | 0.50 |
+| Recall (heuristic-detectable) | **1.00** (5/5) |
+| Recall (semantic bugs) | **0.00** (0/5) |
+| False positives on clean diffs | 0 |
+
+That 0/5 semantic row is the point: it quantifies exactly what the real Claude engine
+adds. The harness scores Claude too when `ANTHROPIC_API_KEY` is exported during
+`mvn test`; results render on the dashboard's **Evals** page (public endpoint
+`/api/evals/report`). The heuristic floors are asserted in CI, so a regression in the
+fallback engine fails the build.
 
 ---
 
@@ -122,6 +153,7 @@ Open http://localhost:5173. The Vite dev server proxies `/api` to the backend on
 | `GET`  | `/api/reviews/{id}` | Review detail (findings + diff) |
 | `GET`/`POST`/`DELETE` | `/api/repositories` | Manage connected repositories |
 | `POST` | `/api/webhooks/github` | GitHub `pull_request` webhook (HMAC-verified) |
+| `GET`  | `/api/evals/report` | Public evaluation scoreboard (precision/recall) |
 
 All endpoints except `/api/auth/**` and `/api/webhooks/**` require a
 `Authorization: Bearer <token>` header.

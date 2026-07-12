@@ -8,6 +8,7 @@ import ReviewsPage from "./pages/ReviewsPage";
 import ReviewDetailPage from "./pages/ReviewDetailPage";
 import RepositoriesPage from "./pages/RepositoriesPage";
 import NewReviewPage from "./pages/NewReviewPage";
+import EvalsPage from "./pages/EvalsPage";
 import type { ReactElement } from "react";
 
 function RequireAuth({ children }: { children: ReactElement }) {
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/reviews/new" element={<NewReviewPage />} />
         <Route path="/reviews/:id" element={<ReviewDetailPage />} />
         <Route path="/repositories" element={<RepositoriesPage />} />
+        <Route path="/evals" element={<EvalsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -6,6 +6,7 @@ import com.codereview.domain.ReviewStatus;
 import com.codereview.repository.ReviewRepository;
 import com.codereview.service.ai.AiReviewResult;
 import com.codereview.service.ai.AiReviewService;
+import com.codereview.service.ai.FindingAnchorValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -25,10 +26,13 @@ public class ReviewProcessor {
 
     private final ReviewRepository reviews;
     private final AiReviewService aiReviewService;
+    private final FindingAnchorValidator anchorValidator;
 
-    public ReviewProcessor(ReviewRepository reviews, AiReviewService aiReviewService) {
+    public ReviewProcessor(ReviewRepository reviews, AiReviewService aiReviewService,
+                           FindingAnchorValidator anchorValidator) {
         this.reviews = reviews;
         this.aiReviewService = aiReviewService;
+        this.anchorValidator = anchorValidator;
     }
 
     @Async("reviewExecutor")
@@ -48,8 +52,16 @@ public class ReviewProcessor {
                     review.getPullRequest().getTitle(),
                     review.getPullRequest().getDiff());
 
+            // Guard against hallucinated anchors before persisting anything inline.
+            FindingAnchorValidator.Result anchored = anchorValidator.validate(
+                    review.getPullRequest().getDiff(), result.findings());
+            if (anchored.snapped() > 0 || anchored.demoted() > 0) {
+                log.info("Review {}: {} finding anchor(s) snapped, {} demoted to file level.",
+                        reviewId, anchored.snapped(), anchored.demoted());
+            }
+
             review.getIssues().clear();
-            for (AiReviewResult.Finding finding : result.findings()) {
+            for (AiReviewResult.Finding finding : anchored.findings()) {
                 ReviewIssue issue = new ReviewIssue();
                 issue.setFilePath(finding.filePath());
                 issue.setLineNumber(finding.lineNumber());
@@ -63,6 +75,7 @@ public class ReviewProcessor {
             review.setOverallScore(result.overallScore());
             review.setSummary(result.summary());
             review.setUsedRealAi(result.usedRealAi());
+            review.setUnanchoredFindings(anchored.demoted());
             review.setStatus(ReviewStatus.COMPLETED);
             review.setCompletedAt(Instant.now());
             reviews.save(review);

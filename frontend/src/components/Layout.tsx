@@ -6,6 +6,7 @@ const navItems = [
   { to: "/reviews", label: "Reviews", end: false },
   { to: "/reviews/new", label: "New Review", end: false },
   { to: "/repositories", label: "Repositories", end: false },
+  { to: "/evals", label: "Evals", end: false },
 ];
 
 export default function Layout() {

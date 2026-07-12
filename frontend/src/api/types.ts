@@ -56,6 +56,7 @@ export interface ReviewDetail {
   overallScore: number | null;
   summary: string | null;
   usedRealAi: boolean;
+  unanchoredFindings: number;
   errorMessage: string | null;
   issues: Issue[];
   createdAt: string;
@@ -76,4 +77,38 @@ export interface DashboardStats {
   repositoryCount: number;
   issuesByCategory: Record<IssueCategory, number>;
   scoreTrend: ScorePoint[];
+}
+
+export interface EvalCategoryScore {
+  category: IssueCategory;
+  tp: number;
+  fn: number;
+  fp: number;
+}
+
+export interface EvalEngineScore {
+  engine: string;
+  truePositives: number;
+  falseNegatives: number;
+  falsePositives: number;
+  precision: number;
+  recall: number;
+  f1: number;
+  heuristicDetectableRecall: number;
+  semanticRecall: number;
+  cleanFalsePositives: number;
+  demotedAnchors: number;
+  categories: EvalCategoryScore[];
+}
+
+export interface EvalReport {
+  generatedAt: string;
+  dataset: {
+    cases: number;
+    buggyCases: number;
+    cleanCases: number;
+    labeledBugs: number;
+  };
+  methodology: string;
+  engines: EvalEngineScore[];
 }

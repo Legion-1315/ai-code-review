@@ -44,6 +44,10 @@ public class Review {
     @Column(nullable = false)
     private boolean usedRealAi = false;
 
+    /** Findings whose file/line anchor did not exist in the diff and were demoted to file level. */
+    @Column(nullable = false)
+    private int unanchoredFindings = 0;
+
     @Column(columnDefinition = "TEXT")
     private String errorMessage;
 
@@ -103,6 +107,14 @@ public class Review {
 
     public void setUsedRealAi(boolean usedRealAi) {
         this.usedRealAi = usedRealAi;
+    }
+
+    public int getUnanchoredFindings() {
+        return unanchoredFindings;
+    }
+
+    public void setUnanchoredFindings(int unanchoredFindings) {
+        this.unanchoredFindings = unanchoredFindings;
     }
 
     public String getErrorMessage() {

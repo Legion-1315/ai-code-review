@@ -1,0 +1,106 @@
+[
+  {
+    "id": "hardcoded-secret",
+    "title": "Add payment gateway config",
+    "detectableBy": "HEURISTIC",
+    "diff": "--- a/src/main/java/com/shop/config/PaymentConfig.java\n+++ b/src/main/java/com/shop/config/PaymentConfig.java\n@@ -1,8 +1,9 @@\n package com.shop.config;\n \n public class PaymentConfig {\n     private final String gatewayUrl;\n+    private static final String STRIPE_API_KEY = \"sk_live_51HxT9qGpXk\";\n     private final int timeoutMs;\n     private final boolean retryEnabled;\n \n }\n",
+    "expected": [
+      { "filePath": "src/main/java/com/shop/config/PaymentConfig.java", "lineNumber": 5, "categories": ["SECURITY"] }
+    ]
+  },
+  {
+    "id": "sql-injection-concat",
+    "title": "Customer lookup by email",
+    "detectableBy": "HEURISTIC",
+    "diff": "--- a/src/main/java/com/shop/dao/CustomerDao.java\n+++ b/src/main/java/com/shop/dao/CustomerDao.java\n@@ -5,6 +5,8 @@\n public class CustomerDao {\n     private final JdbcTemplate jdbc;\n \n     public Customer findByEmail(String email) {\n+        String sql = \"SELECT * FROM customers WHERE email = '\" + email + \"'\";\n+        return jdbc.queryForObject(sql, new CustomerMapper());\n     }\n }\n",
+    "expected": [
+      { "filePath": "src/main/java/com/shop/dao/CustomerDao.java", "lineNumber": 9, "categories": ["SECURITY"] }
+    ]
+  },
+  {
+    "id": "empty-catch-swallow",
+    "title": "Archive invoices after export",
+    "detectableBy": "HEURISTIC",
+    "diff": "--- a/src/main/java/com/shop/service/InvoiceService.java\n+++ b/src/main/java/com/shop/service/InvoiceService.java\n@@ -12,4 +12,8 @@\n     public void archive(Invoice invoice) {\n         validate(invoice);\n+        try {\n+            exporter.export(invoice);\n+        } catch (IOException e) {}\n+        markArchived(invoice);\n     }\n }\n",
+    "expected": [
+      { "filePath": "src/main/java/com/shop/service/InvoiceService.java", "lineNumber": 16, "categories": ["BEST_PRACTICE", "CODE_QUALITY"] }
+    ]
+  },
+  {
+    "id": "debug-println",
+    "title": "Order placement flow",
+    "detectableBy": "HEURISTIC",
+    "diff": "--- a/src/main/java/com/shop/service/OrderService.java\n+++ b/src/main/java/com/shop/service/OrderService.java\n@@ -20,4 +20,5 @@\n     public Order place(OrderRequest request) {\n         Order order = build(request);\n+        System.out.println(\"DEBUG placing order \" + request.getId());\n         return repository.save(order);\n     }\n",
+    "expected": [
+      { "filePath": "src/main/java/com/shop/service/OrderService.java", "lineNumber": 22, "categories": ["BEST_PRACTICE", "CODE_QUALITY"] }
+    ]
+  },
+  {
+    "id": "todo-marker",
+    "title": "Cart total calculation",
+    "detectableBy": "HEURISTIC",
+    "diff": "--- a/src/main/java/com/shop/service/PricingService.java\n+++ b/src/main/java/com/shop/service/PricingService.java\n@@ -9,4 +9,5 @@\n     public BigDecimal total(Cart cart) {\n         BigDecimal subtotal = subtotal(cart);\n+        // TODO: apply regional tax rules before release\n         return subtotal.add(shipping(cart));\n     }\n",
+    "expected": [
+      { "filePath": "src/main/java/com/shop/service/PricingService.java", "lineNumber": 11, "categories": ["CODE_QUALITY", "BEST_PRACTICE"] }
+    ]
+  },
+  {
+    "id": "n-plus-one-query",
+    "title": "Customer order report",
+    "detectableBy": "SEMANTIC",
+    "diff": "--- a/src/main/java/com/shop/service/ReportService.java\n+++ b/src/main/java/com/shop/service/ReportService.java\n@@ -14,4 +14,10 @@\n     public List<OrderLine> linesForCustomer(Long customerId) {\n         List<Long> orderIds = orderRepository.idsForCustomer(customerId);\n+        List<OrderLine> lines = new ArrayList<>();\n+        for (Long orderId : orderIds) {\n+            Order order = orderRepository.findById(orderId).orElseThrow();\n+            lines.addAll(order.getLines());\n+        }\n+        return lines;\n     }\n }\n",
+    "expected": [
+      { "filePath": "src/main/java/com/shop/service/ReportService.java", "lineNumber": 18, "categories": ["PERFORMANCE"] }
+    ]
+  },
+  {
+    "id": "check-then-act-race",
+    "title": "Currency rate cache",
+    "detectableBy": "SEMANTIC",
+    "diff": "--- a/src/main/java/com/shop/cache/RateCache.java\n+++ b/src/main/java/com/shop/cache/RateCache.java\n@@ -10,5 +10,9 @@\n     private final Map<String, BigDecimal> rates = new ConcurrentHashMap<>();\n \n     public BigDecimal rateFor(String currency) {\n+        if (!rates.containsKey(currency)) {\n+            rates.put(currency, fetchRate(currency));\n+        }\n+        return rates.get(currency);\n     }\n }\n",
+    "expected": [
+      { "filePath": "src/main/java/com/shop/cache/RateCache.java", "lineNumber": 13, "categories": ["CODE_QUALITY", "BEST_PRACTICE", "PERFORMANCE"] }
+    ]
+  },
+  {
+    "id": "resource-leak",
+    "title": "CSV template loader",
+    "detectableBy": "SEMANTIC",
+    "diff": "--- a/src/main/java/com/shop/export/CsvExporter.java\n+++ b/src/main/java/com/shop/export/CsvExporter.java\n@@ -8,3 +8,7 @@\n     public String readTemplate(String path) throws IOException {\n+        FileInputStream in = new FileInputStream(path);\n+        byte[] data = in.readAllBytes();\n+        String template = new String(data, StandardCharsets.UTF_8);\n+        return template;\n     }\n }\n",
+    "expected": [
+      { "filePath": "src/main/java/com/shop/export/CsvExporter.java", "lineNumber": 9, "categories": ["BEST_PRACTICE", "CODE_QUALITY"] }
+    ]
+  },
+  {
+    "id": "path-traversal",
+    "title": "Attachment download endpoint",
+    "detectableBy": "SEMANTIC",
+    "diff": "--- a/src/main/java/com/shop/web/AttachmentController.java\n+++ b/src/main/java/com/shop/web/AttachmentController.java\n@@ -15,4 +15,8 @@\n     @GetMapping(\"/attachments\")\n     public byte[] download(@RequestParam String fileName) throws IOException {\n+        File file = new File(uploadDir, fileName);\n+        try (FileInputStream in = new FileInputStream(file)) {\n+            return in.readAllBytes();\n+        }\n     }\n }\n",
+    "expected": [
+      { "filePath": "src/main/java/com/shop/web/AttachmentController.java", "lineNumber": 17, "categories": ["SECURITY"] }
+    ]
+  },
+  {
+    "id": "off-by-one-loop",
+    "title": "Best discount selection",
+    "detectableBy": "SEMANTIC",
+    "diff": "--- a/src/main/java/com/shop/service/DiscountService.java\n+++ b/src/main/java/com/shop/service/DiscountService.java\n@@ -11,4 +11,8 @@\n     public BigDecimal bestDiscount(List<Rule> rules, Cart cart) {\n         BigDecimal best = BigDecimal.ZERO;\n+        for (int i = 0; i <= rules.size(); i++) {\n+            BigDecimal candidate = rules.get(i).apply(cart);\n+            best = best.max(candidate);\n+        }\n         return best;\n     }\n",
+    "expected": [
+      { "filePath": "src/main/java/com/shop/service/DiscountService.java", "lineNumber": 13, "categories": ["CODE_QUALITY", "BEST_PRACTICE"] }
+    ]
+  },
+  {
+    "id": "clean-refactor",
+    "title": "Extract weight calculation helper",
+    "detectableBy": "NONE",
+    "diff": "--- a/src/main/java/com/shop/service/ShippingService.java\n+++ b/src/main/java/com/shop/service/ShippingService.java\n@@ -7,6 +7,13 @@\n public class ShippingService {\n \n     public BigDecimal quote(Cart cart) {\n-        return cart.getItems().stream().map(Item::getWeight).reduce(BigDecimal.ZERO, BigDecimal::add).multiply(RATE_PER_KG).min(MAX_FEE);\n+        BigDecimal totalWeight = totalWeight(cart);\n+        return totalWeight.multiply(RATE_PER_KG).min(MAX_FEE);\n     }\n+\n+    private BigDecimal totalWeight(Cart cart) {\n+        return cart.getItems().stream()\n+                .map(Item::getWeight)\n+                .reduce(BigDecimal.ZERO, BigDecimal::add);\n+    }\n }\n",
+    "expected": []
+  },
+  {
+    "id": "clean-docs",
+    "title": "Document VAT computation",
+    "detectableBy": "NONE",
+    "diff": "--- a/src/main/java/com/shop/service/TaxService.java\n+++ b/src/main/java/com/shop/service/TaxService.java\n@@ -3,5 +3,9 @@\n public class TaxService {\n \n+    /**\n+     * Computes VAT for the given order using the merchant's registered region.\n+     * Rates are refreshed daily from the tax provider.\n+     */\n     public BigDecimal vat(Order order) {\n         return order.subtotal().multiply(currentRate(order.region()));\n     }\n",
+    "expected": []
+  }
+]

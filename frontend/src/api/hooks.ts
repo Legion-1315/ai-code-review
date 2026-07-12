@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type {
   DashboardStats,
+  EvalReport,
   Repository,
   ReviewDetail,
   ReviewSummary,
@@ -80,5 +81,13 @@ export function useDeleteRepository() {
   return useMutation({
     mutationFn: async (id: number) => api.delete(`/repositories/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["repositories"] }),
+  });
+}
+
+export function useEvalReport() {
+  return useQuery({
+    queryKey: ["evals"],
+    queryFn: async () => (await api.get<EvalReport>("/evals/report")).data,
+    staleTime: Infinity,
   });
 }
